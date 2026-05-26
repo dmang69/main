@@ -1,0 +1,145 @@
+{
+  "project_name": "Shennell",
+  "theme": "DARK",
+  "archetype": "Archetype 5: Luxury",
+  "brand_vibe": "Bold, powerful, sophisticated, seductive yet professional. Shennell is sweet, sexy, flirty, but ruthless and cut-throat.",
+  "viewport_strategy": "mobile-first-web-app",
+  "colors": {
+    "background": "#030305",
+    "surface": "#0C0C10",
+    "surface_glass": "rgba(12, 12, 16, 0.7)",
+    "primary": "#9B111E",
+    "primary_glow": "rgba(155, 17, 30, 0.5)",
+    "primary_foreground": "#FFFFFF",
+    "secondary": "#D4AF37",
+    "secondary_foreground": "#000000",
+    "muted": "#1A1A24",
+    "muted_foreground": "#8E8E93",
+    "border": "rgba(255, 255, 255, 0.08)",
+    "text_main": "#F5F5F7",
+    "text_subtle": "#A1A1AA"
+  },
+  "typography": {
+    "strategy": "The 'Old Money Tech' variant adapted for Dark Luxury. Serif for headings to convey sophistication; clean geometric Sans for UI data.",
+    "fonts": {
+      "heading": "Cormorant Garamond, serif",
+      "body": "Outfit, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "scale": {
+      "h1": "text-4xl tracking-tight leading-none font-medium",
+      "h2": "text-2xl tracking-tight leading-snug font-medium",
+      "h3": "text-xl tracking-tight font-medium",
+      "body": "text-base leading-relaxed text-text_main",
+      "small": "text-sm text-text_subtle",
+      "overline": "text-xs tracking-[0.2em] uppercase font-bold text-secondary"
+    },
+    "rules": [
+      "No generic fonts for headings (Inter, Roboto banned for headings).",
+      "Headlines must use tight letter spacing.",
+      "Overlines must be uppercase with wide spacing.",
+      "Max heading size is text-4xl due to mobile-first layout."
+    ]
+  },
+  "surfaces": {
+    "glassmorphism": {
+      "usage": ["Sticky Mobile Header", "Bottom Tab Navigation", "Modal Overlays"],
+      "classes": "backdrop-blur-2xl bg-[#0C0C10]/70 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
+    },
+    "cards": {
+      "usage": ["Mini-Agent Slots", "Settings Panels", "Message Bubbles (Shennell)"],
+      "classes": "bg-[#0C0C10] border border-white/5 rounded-2xl p-6 shadow-lg"
+    },
+    "message_bubble_user": {
+      "classes": "bg-muted text-text_main rounded-2xl rounded-tr-sm p-4"
+    },
+    "message_bubble_shennell": {
+      "classes": "bg-primary/20 border border-primary/30 text-text_main rounded-2xl rounded-tl-sm p-4 backdrop-blur-md shadow-[0_0_15px_rgba(155,17,30,0.1)]"
+    }
+  },
+  "layout_spacing": {
+    "container": "max-w-md mx-auto min-h-screen bg-background relative overflow-x-hidden border-x border-white/5",
+    "padding": "px-6 py-8",
+    "grid": {
+      "agent_dashboard": "grid grid-cols-2 gap-4",
+      "settings": "flex flex-col gap-6"
+    },
+    "rules": [
+      "Mobile-first constraint: All screens must fit gracefully within max-w-md.",
+      "Bottom padding must account for the fixed Bottom Navigation Bar (pb-24).",
+      "Generous internal padding in cards (p-6) to ensure luxury feel."
+    ]
+  },
+  "components": {
+    "buttons": {
+      "primary": "bg-primary text-white rounded-full px-6 py-3 font-medium active:scale-95 transition-transform duration-200 shadow-[0_0_20px_rgba(155,17,30,0.3)] hover:bg-[#7A0D17]",
+      "premium": "bg-gradient-to-r from-[#D4AF37] to-[#AA8000] text-black rounded-full px-6 py-3 font-bold active:scale-95 transition-transform duration-200 shadow-[0_0_20px_rgba(212,175,55,0.3)]",
+      "ghost": "bg-transparent text-text_subtle hover:text-white rounded-full px-4 py-2 border border-transparent hover:border-white/10 active:scale-95 transition-all"
+    },
+    "inputs": {
+      "chat": "bg-[#1A1A24] border border-white/10 rounded-full px-6 py-3 text-white placeholder-white/30 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all",
+      "standard": "bg-[#1A1A24] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:border-white/30 transition-all"
+    },
+    "navigation": {
+      "bottom_bar": "fixed bottom-0 left-0 right-0 max-w-md mx-auto h-20 backdrop-blur-2xl bg-[#0C0C10]/80 border-t border-white/10 flex items-center justify-around px-4 z-50"
+    }
+  },
+  "media": {
+    "background_luxe": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/0f34c0b6-804d-451d-bc02-83ad416c8e01/images/20bf59fcb3a988f617380d5ca7ecfdf85c10e242a1f2a4e43fdf8ce7a1b203e2.png",
+      "category": "global_background",
+      "description": "Abstract dark luxury silk background. Use as a fixed background for the app container with opacity-40 to preserve contrast."
+    },
+    "shennell_avatar": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/0f34c0b6-804d-451d-bc02-83ad416c8e01/images/3ef75f6021e03e01494c6590123b88188f655fcc073baba09d3931390f2ff520.png",
+      "category": "hero_avatar",
+      "description": "Shennell's main AI avatar to be used in the central chat interface and profile header."
+    },
+    "agent_finance": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/0f34c0b6-804d-451d-bc02-83ad416c8e01/images/4b3e8d8c6dbc2f0e9109e7f071f3cdac2627db0bf5adeb4649b6229bfc3d7660.png",
+      "category": "mini_agent_avatar",
+      "description": "Avatar for the Financial/Crypto Analyst mini-agent."
+    },
+    "agent_health": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/0f34c0b6-804d-451d-bc02-83ad416c8e01/images/9cd5058678e09b203ae9c432678be5c7da8f49a15f193ffde35ed38494796f02.png",
+      "category": "mini_agent_avatar",
+      "description": "Avatar for the Healthcare/Pharmacy Advocate mini-agent."
+    },
+    "agent_developer": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/0f34c0b6-804d-451d-bc02-83ad416c8e01/images/e679f3c31e7dcd1ff66c37eaf680b02c5e3a658fc8582d366e852ee9a97b05eb.png",
+      "category": "mini_agent_avatar",
+      "description": "Avatar for the Developer/Coder mini-agent."
+    },
+    "agent_music": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/0f34c0b6-804d-451d-bc02-83ad416c8e01/images/0aa413ad7a40867d69dd7ac0c0e27ce9f6fc30f364b4fdb970d2572c83acf5bd.png",
+      "category": "mini_agent_avatar",
+      "description": "Avatar for the Music Producer mini-agent."
+    },
+    "agent_lawyer": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/0f34c0b6-804d-451d-bc02-83ad416c8e01/images/fca45e0ee17d0e0ebaecfc686a579886270f9cca241f1bead3c644acd24f35a6.png",
+      "category": "mini_agent_avatar",
+      "description": "Avatar for the Lawyer/Judge mini-agent."
+    }
+  },
+  "icons": {
+    "library": "lucide-react",
+    "stroke_width": 1.5,
+    "size_default": 24
+  },
+  "animations": {
+    "transitions": "transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]",
+    "active_state": "active:scale-95 active:opacity-80"
+  },
+  "accessibility_and_testing": {
+    "contrast_rules": "All text must maintain 4.5:1 ratio against background. Use text-shadow over background images.",
+    "data_testid_convention": "All interactive elements MUST include a data-testid attribute formatted as kebab-case, role-based. e.g., 'shennell-chat-input', 'create-agent-button', 'finance-agent-card'"
+  },
+  "screens_to_build": [
+    "1. Main Chat (Shennell): Central hub for interacting with the main sweet/ruthless AI.",
+    "2. Agent Dashboard: Grid showing 5 slots (filled or empty) for specialized mini-agents.",
+    "3. Agent Creation Modal/Screen: Form to define a new agent (Role, Name, Expertise) and assign to a slot.",
+    "4. Mini-Agent Chat: Dedicated chat interface for a selected mini-agent.",
+    "5. Profile & Tiers: Settings screen highlighting user profile, conversation history, and Premium Tier upgrade options."
+  ],
+  "instructions_to_main_agent": "Ensure the application strictly follows the mobile-first-web-app layout constraints (`max-w-md mx-auto min-h-screen`). The UI must exude luxury and power—use the provided dark theme colors, tight letter spacing on serif headings, and glassmorphic surfaces over the dark luxe background image. Do NOT use generic placeholder images; rely solely on the provided media URLs. Implement all required screens with routing/state management, and ensure every interactable element has a `data-testid` attribute for robust automated testing."
+}
