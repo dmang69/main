@@ -20,28 +20,31 @@ export default function TabsLayout() {
           marginBottom: Platform.OS === "ios" ? 0 : 6,
         },
         tabBarStyle: {
-          position: "absolute",
-          backgroundColor: "transparent",
+          backgroundColor: Platform.OS === "web" ? colors.background : "transparent",
           borderTopColor: colors.border,
           borderTopWidth: StyleSheet.hairlineWidth,
           elevation: 0,
           height: Platform.OS === "ios" ? 88 : 70,
           paddingTop: 8,
+          ...(Platform.OS !== "web" && { position: "absolute" }),
         },
-        tabBarBackground: () => (
-          <BlurView
-            intensity={60}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-          >
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: "rgba(3,3,5,0.7)" },
-              ]}
-            />
-          </BlurView>
-        ),
+        tabBarBackground:
+          Platform.OS === "web"
+            ? undefined
+            : () => (
+                <BlurView
+                  intensity={60}
+                  tint="dark"
+                  style={StyleSheet.absoluteFill}
+                >
+                  <View
+                    style={[
+                      StyleSheet.absoluteFill,
+                      { backgroundColor: "rgba(3,3,5,0.7)" },
+                    ]}
+                  />
+                </BlurView>
+              ),
       }}
     >
       <Tabs.Screen

@@ -223,21 +223,33 @@ def get_template(key: str) -> Optional[dict]:
 
 
 async def run_chat(session_id: str, system_prompt: str, history: list, user_text: str) -> str:
-    """Run a multi-turn chat with GPT-4o using the universal Emergent LLM key."""
+    """Run chat with GPT-4o-mini using a single LLM call.
+
+    History is packed into the user message as context to avoid replaying turns
+    (which would multiply the API cost N-fold).
+    """
     chat = LlmChat(
         api_key=EMERGENT_LLM_KEY,
         session_id=session_id,
         system_message=system_prompt,
     ).with_model("openai", "gpt-4o-mini")
 
-    # Replay history into the conversation
-    for m in history:
-        if m["role"] == "user":
-            await chat.send_message(UserMessage(text=m["content"]))
-        # assistant messages are auto-added by the LlmChat upon prior turn
+    if history:
+        # Take the most recent 10 turns to keep prompt size sane
+        recent = history[-10:]
+        transcript = "\n".join(
+            f"{m['role'].upper()}: {m['content']}" for m in recent
+        )
+        prompt = (
+            "Prior conversation (oldest first):\n"
+            f"{transcript}\n\n"
+            f"USER's new message: {user_text}\n\n"
+            "Respond in character to the new message, using prior context."
+        )
+    else:
+        prompt = user_text
 
-    # Send the new user message
-    response = await chat.send_message(UserMessage(text=user_text))
+    response = await chat.send_message(UserMessage(text=prompt))
     return response
 
 

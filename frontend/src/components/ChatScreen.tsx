@@ -10,8 +10,6 @@ import {
   Platform,
   ActivityIndicator,
   Image,
-  Keyboard,
-  TouchableWithoutFeedback,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -64,7 +62,6 @@ export default function ChatScreen({
     const text = input.trim();
     if (!text || sending) return;
     setInput("");
-    Keyboard.dismiss();
     if (imageMode && onGenerateImage) {
       await onGenerateImage(text);
       setImageMode(false);
@@ -148,8 +145,7 @@ export default function ChatScreen({
         style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={{ flex: 1 }}>
+        <View style={{ flex: 1 }}>
             {loading ? (
               <View style={styles.center}>
                 <ActivityIndicator color={accentColor} />
@@ -170,6 +166,7 @@ export default function ChatScreen({
                 contentContainerStyle={styles.listContent}
                 onContentSizeChange={scrollToEnd}
                 keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
               />
             )}
 
@@ -225,7 +222,6 @@ export default function ChatScreen({
               </TouchableOpacity>
             </View>
           </View>
-        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
