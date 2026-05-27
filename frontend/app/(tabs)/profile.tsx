@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,13 +7,15 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Linking,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, radius, spacing, MEDIA } from "@/src/theme";
-import { apiDelete, getUserId } from "@/src/api";
+import { apiDelete, apiGet, apiPost, getUserId } from "@/src/api";
 import { storage } from "@/src/utils/storage";
 
 const TIERS = [
@@ -43,13 +45,61 @@ const TIERS = [
 
 export default function ProfileTab() {
   const [userId, setUserId] = useState("");
-  const [tier] = useState("essential");
+  const [currentPlan, setCurrentPlan] = useState<string>("essential");
+  const [upgrading, setUpgrading] = useState<string | null>(null);
+
+  const refreshTier = useCallback(async (uid: string) => {
+    try {
+      const sub = await apiGet<{ plan: string }>(
+        `/stripe/status?user_id=${encodeURIComponent(uid)}`,
+      );
+      setCurrentPlan(sub.plan || "essential");
+    } catch {
+      setCurrentPlan("essential");
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      (async () => setUserId(await getUserId()))();
-    }, []),
+      (async () => {
+        const uid = await getUserId();
+        setUserId(uid);
+        await refreshTier(uid);
+      })();
+    }, [refreshTier]),
   );
+
+  const upgrade = async (plan: "elite" | "empire") => {
+    if (upgrading) return;
+    setUpgrading(plan);
+    try {
+      const uid = userId || (await getUserId());
+      // For web preview / Expo Go, use the current page URL as success/cancel target
+      const origin =
+        Platform.OS === "web" && typeof window !== "undefined"
+          ? window.location.origin
+          : (process.env.EXPO_PUBLIC_BACKEND_URL || "");
+      const successUrl = `${origin}/profile`;
+      const cancelUrl = `${origin}/profile`;
+      const res = await apiPost<{ checkout_url: string }>("/stripe/checkout", {
+        user_id: uid,
+        plan,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+      });
+      if (res.checkout_url) {
+        if (Platform.OS === "web" && typeof window !== "undefined") {
+          window.location.href = res.checkout_url;
+        } else {
+          await Linking.openURL(res.checkout_url);
+        }
+      }
+    } catch (e: any) {
+      Alert.alert("Upgrade failed", e?.message || "Could not start checkout");
+    } finally {
+      setUpgrading(null);
+    }
+  };
 
   const onReset = () => {
     Alert.alert(
@@ -100,10 +150,14 @@ export default function ProfileTab() {
         <View style={styles.currentTier}>
           <View>
             <Text style={styles.sectionLabel}>Current Tier</Text>
-            <Text style={styles.currentTierName}>Essential</Text>
+            <Text style={styles.currentTierName}>
+              {currentPlan === "elite" ? "Elite" : currentPlan === "empire" ? "Empire" : "Essential"}
+            </Text>
           </View>
           <View style={styles.tierBadge}>
-            <Text style={styles.tierBadgeText}>FREE</Text>
+            <Text style={styles.tierBadgeText}>
+              {currentPlan === "elite" ? "$19" : currentPlan === "empire" ? "$49" : "FREE"}
+            </Text>
           </View>
         </View>
 
@@ -149,13 +203,10 @@ export default function ProfileTab() {
                 style={[
                   styles.upgradeBtn,
                   t.key === "empire" && styles.upgradeBtnGold,
+                  (upgrading === t.key || currentPlan === t.key) && { opacity: 0.6 },
                 ]}
-                onPress={() =>
-                  Alert.alert(
-                    "Coming soon",
-                    "Payments launch shortly. You're on the early list.",
-                  )
-                }
+                onPress={() => upgrade(t.key as "elite" | "empire")}
+                disabled={upgrading !== null || currentPlan === t.key}
                 testID={`upgrade-${t.key}-btn`}
               >
                 <Text
@@ -164,7 +215,13 @@ export default function ProfileTab() {
                     t.key === "empire" && { color: "#000" },
                   ]}
                 >
-                  {t.key === "empire" ? "Reserve Empire" : "Upgrade"}
+                  {currentPlan === t.key
+                    ? "Active"
+                    : upgrading === t.key
+                    ? "Opening checkout…"
+                    : t.key === "empire"
+                    ? "Reserve Empire"
+                    : "Upgrade"}
                 </Text>
               </TouchableOpacity>
             ) : (

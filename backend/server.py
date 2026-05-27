@@ -11,6 +11,7 @@ import uuid
 from datetime import datetime, timezone
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+import stripe
 
 
 ROOT_DIR = Path(__file__).parent
@@ -22,6 +23,9 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY")
+STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY")
+if STRIPE_API_KEY:
+    stripe.api_key = STRIPE_API_KEY
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -539,6 +543,10 @@ async def shennell_clear(user_id: str):
 
 # ========================= APP SETUP =========================
 app.include_router(api_router)
+
+# Wire up the missions / stripe / suno-export extras router
+from extras import attach as attach_extras  # noqa: E402
+app.include_router(attach_extras(db, run_chat, AGENT_TEMPLATES, SHENNELL_SYSTEM_PROMPT))
 
 app.add_middleware(
     CORSMiddleware,
