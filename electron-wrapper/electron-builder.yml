@@ -1,0 +1,24 @@
+appId: com.shennell.desktop
+productName: Shennell Desktop
+directories:
+  output: release
+  buildResources: build
+files:
+  - src/**/*
+  - package.json
+extraMetadata:
+  main: src/main.js
+win:
+  target:
+    - nsis
+  artifactName: "${productName}-Setup-${version}-${arch}.${ext}"
+  icon: build/icons/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  include: build/nsis/installer.nsh
+publish:
+  provider: github
+  owner: dmang69
+  repo: main

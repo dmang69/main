@@ -18,7 +18,7 @@ export default function AgentChat() {
       const uid = await getUserId();
       setUserId(uid);
       const [a, msgs] = await Promise.all([
-        apiGet<Agent>(`/agents/${id}`),
+        apiGet<Agent>(`/agents/${id}?user_id=${encodeURIComponent(uid)}`),
         apiGet<Message[]>(
           `/agents/${id}/messages?user_id=${encodeURIComponent(uid)}`,
         ),

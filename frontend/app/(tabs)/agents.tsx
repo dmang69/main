@@ -53,7 +53,9 @@ export default function AgentsTab() {
           text: "Dismiss",
           style: "destructive",
           onPress: async () => {
-            await apiDelete(`/agents/${agent.id}`);
+            await apiDelete(
+              `/agents/${agent.id}?user_id=${encodeURIComponent(agent.user_id)}`,
+            );
             refresh();
           },
         },

@@ -13,7 +13,7 @@ import { useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, radius, spacing, MEDIA } from "@/src/theme";
-import { apiDelete, getUserId } from "@/src/api";
+import { apiDelete, clearSession, getUserId } from "@/src/api";
 import { storage } from "@/src/utils/storage";
 
 const TIERS = [
@@ -69,6 +69,7 @@ export default function ProfileTab() {
             } catch (e) {
               console.warn("clear failed", e);
             }
+            await clearSession();
             await storage.removeItem("shennell_user_id");
             const newId = await getUserId();
             setUserId(newId);

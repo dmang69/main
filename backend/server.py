@@ -1,14 +1,15 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Header, Query
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Optional, Literal
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from jose import jwt, JWTError
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
@@ -22,6 +23,10 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
 EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY")
+AUTH_SECRET = os.environ.get("AUTH_SECRET", "dev-insecure-change-me")
+AUTH_ALGORITHM = "HS256"
+AUTH_TTL_HOURS = int(os.environ.get("AUTH_TTL_HOURS", "168"))
+AUTH_REQUIRED = os.environ.get("AUTH_REQUIRED", "false").lower() == "true"
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -240,29 +245,33 @@ class Agent(BaseModel):
 
 
 class CreateAgentRequest(BaseModel):
-    user_id: str
-    name: str
-    role: str
-    tagline: Optional[str] = ""
-    system_prompt: Optional[str] = None
-    color: Optional[str] = "#9B111E"
-    avatar_url: Optional[str] = None
-    template_key: Optional[str] = None
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    user_id: str = Field(min_length=3, max_length=80, pattern=r"^[A-Za-z0-9_-]+$")
+    name: str = Field(min_length=1, max_length=60)
+    role: str = Field(min_length=1, max_length=180)
+    tagline: Optional[str] = Field(default="", max_length=220)
+    system_prompt: Optional[str] = Field(default=None, max_length=12000)
+    color: Optional[str] = Field(default="#9B111E", pattern=r"^#[0-9A-Fa-f]{6}$")
+    avatar_url: Optional[str] = Field(default=None, max_length=1000)
+    template_key: Optional[str] = Field(default=None, max_length=80)
 
 
 class Message(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     agent_id: str  # "shennell" for main agent
     user_id: str
-    role: str  # "user" or "assistant"
+    role: Literal["user", "assistant"]
     content: str
     image_b64: Optional[str] = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 class ChatRequest(BaseModel):
-    user_id: str
-    message: str
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    user_id: str = Field(min_length=3, max_length=80, pattern=r"^[A-Za-z0-9_-]+$")
+    message: str = Field(min_length=1, max_length=4000)
 
 
 class ChatResponse(BaseModel):
@@ -271,8 +280,23 @@ class ChatResponse(BaseModel):
 
 
 class ImageGenRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    user_id: str = Field(min_length=3, max_length=80, pattern=r"^[A-Za-z0-9_-]+$")
+    prompt: str = Field(min_length=1, max_length=2000)
+
+
+class SessionRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    user_id: str = Field(min_length=3, max_length=80, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+class SessionResponse(BaseModel):
+    access_token: str
+    token_type: Literal["bearer"] = "bearer"
+    expires_at: str
     user_id: str
-    prompt: str
 
 
 # ========================= HELPERS =========================
@@ -296,6 +320,51 @@ def get_template(key: str) -> Optional[dict]:
         if t["key"] == key:
             return t
     return None
+
+
+def create_access_token(user_id: str) -> tuple[str, datetime]:
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(hours=AUTH_TTL_HOURS)
+    payload = {
+        "sub": user_id,
+        "iat": int(now.timestamp()),
+        "exp": int(expires.timestamp()),
+    }
+    token = jwt.encode(payload, AUTH_SECRET, algorithm=AUTH_ALGORITHM)
+    return token, expires
+
+
+def decode_access_token(token: str) -> str:
+    payload = jwt.decode(token, AUTH_SECRET, algorithms=[AUTH_ALGORITHM])
+    user_id = payload.get("sub")
+    if not isinstance(user_id, str) or not user_id:
+        raise JWTError("Invalid subject")
+    return user_id
+
+
+def parse_bearer_token(authorization: Optional[str]) -> Optional[str]:
+    if not authorization:
+        return None
+    parts = authorization.split(" ", 1)
+    if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1].strip():
+        raise HTTPException(status_code=401, detail="Invalid Authorization header")
+    return parts[1].strip()
+
+
+async def validate_request_user(user_id: str, authorization: Optional[str]) -> None:
+    token = parse_bearer_token(authorization)
+    if not token:
+        if AUTH_REQUIRED:
+            raise HTTPException(status_code=401, detail="Missing bearer token")
+        return
+
+    try:
+        token_user_id = decode_access_token(token)
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    if token_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Token does not match user")
 
 
 async def run_chat(session_id: str, system_prompt: str, history: list, user_text: str) -> str:
@@ -354,6 +423,16 @@ async def root():
     return {"message": "Shennell AI Agent Platform", "status": "online"}
 
 
+@api_router.post("/session", response_model=SessionResponse)
+async def create_session(req: SessionRequest):
+    token, expires = create_access_token(req.user_id)
+    return SessionResponse(
+        access_token=token,
+        expires_at=expires.isoformat(),
+        user_id=req.user_id,
+    )
+
+
 @api_router.get("/templates")
 async def list_templates():
     # Return templates without exposing the full system prompt
@@ -372,14 +451,19 @@ async def list_templates():
 
 
 @api_router.get("/agents")
-async def list_agents(user_id: str):
+async def list_agents(
+    user_id: str = Query(min_length=3, max_length=80, pattern=r"^[A-Za-z0-9_-]+$"),
+    authorization: Optional[str] = Header(default=None),
+):
+    await validate_request_user(user_id, authorization)
     cursor = db.agents.find({"user_id": user_id}, {"_id": 0}).sort("created_at", 1)
     docs = await cursor.to_list(length=100)
     return docs
 
 
 @api_router.post("/agents", response_model=Agent)
-async def create_agent(req: CreateAgentRequest):
+async def create_agent(req: CreateAgentRequest, authorization: Optional[str] = Header(default=None)):
+    await validate_request_user(req.user_id, authorization)
     # Enforce 5-agent limit
     count = await db.agents.count_documents({"user_id": req.user_id})
     if count >= 5:
@@ -409,19 +493,31 @@ async def create_agent(req: CreateAgentRequest):
 
 
 @api_router.get("/agents/{agent_id}")
-async def get_agent(agent_id: str):
-    return await get_agent_or_404(agent_id)
+async def get_agent(agent_id: str, user_id: str, authorization: Optional[str] = Header(default=None)):
+    await validate_request_user(user_id, authorization)
+    agent = await get_agent_or_404(agent_id)
+    if agent["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not your agent")
+    return agent
 
 
 @api_router.delete("/agents/{agent_id}")
-async def delete_agent(agent_id: str):
-    await db.agents.delete_one({"id": agent_id})
-    await db.messages.delete_many({"agent_id": agent_id})
+async def delete_agent(agent_id: str, user_id: str, authorization: Optional[str] = Header(default=None)):
+    await validate_request_user(user_id, authorization)
+    agent = await get_agent_or_404(agent_id)
+    if agent["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not your agent")
+    await db.agents.delete_one({"id": agent_id, "user_id": user_id})
+    await db.messages.delete_many({"agent_id": agent_id, "user_id": user_id})
     return {"deleted": True}
 
 
 @api_router.get("/agents/{agent_id}/messages")
-async def get_agent_messages(agent_id: str, user_id: str):
+async def get_agent_messages(agent_id: str, user_id: str, authorization: Optional[str] = Header(default=None)):
+    await validate_request_user(user_id, authorization)
+    agent = await get_agent_or_404(agent_id)
+    if agent["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not your agent")
     cursor = db.messages.find(
         {"agent_id": agent_id, "user_id": user_id}, {"_id": 0}
     ).sort("created_at", 1)
@@ -430,7 +526,8 @@ async def get_agent_messages(agent_id: str, user_id: str):
 
 
 @api_router.post("/agents/{agent_id}/chat", response_model=ChatResponse)
-async def chat_with_agent(agent_id: str, req: ChatRequest):
+async def chat_with_agent(agent_id: str, req: ChatRequest, authorization: Optional[str] = Header(default=None)):
+    await validate_request_user(req.user_id, authorization)
     agent = await get_agent_or_404(agent_id)
     if agent["user_id"] != req.user_id:
         raise HTTPException(status_code=403, detail="Not your agent")
@@ -462,7 +559,8 @@ async def chat_with_agent(agent_id: str, req: ChatRequest):
 
 
 @api_router.post("/agents/{agent_id}/image")
-async def agent_generate_image(agent_id: str, req: ImageGenRequest):
+async def agent_generate_image(agent_id: str, req: ImageGenRequest, authorization: Optional[str] = Header(default=None)):
+    await validate_request_user(req.user_id, authorization)
     agent = await get_agent_or_404(agent_id)
     if agent["user_id"] != req.user_id:
         raise HTTPException(status_code=403, detail="Not your agent")
@@ -492,7 +590,8 @@ async def agent_generate_image(agent_id: str, req: ImageGenRequest):
 
 # ========================= SHENNELL =========================
 @api_router.get("/shennell/messages")
-async def shennell_messages(user_id: str):
+async def shennell_messages(user_id: str, authorization: Optional[str] = Header(default=None)):
+    await validate_request_user(user_id, authorization)
     cursor = db.messages.find(
         {"agent_id": "shennell", "user_id": user_id}, {"_id": 0}
     ).sort("created_at", 1)
@@ -501,7 +600,8 @@ async def shennell_messages(user_id: str):
 
 
 @api_router.post("/shennell/chat", response_model=ChatResponse)
-async def shennell_chat(req: ChatRequest):
+async def shennell_chat(req: ChatRequest, authorization: Optional[str] = Header(default=None)):
+    await validate_request_user(req.user_id, authorization)
     user_msg = Message(agent_id="shennell", user_id=req.user_id, role="user", content=req.message)
     await db.messages.insert_one(user_msg.model_dump())
 
@@ -532,7 +632,8 @@ async def shennell_chat(req: ChatRequest):
 
 
 @api_router.delete("/shennell/messages")
-async def shennell_clear(user_id: str):
+async def shennell_clear(user_id: str, authorization: Optional[str] = Header(default=None)):
+    await validate_request_user(user_id, authorization)
     await db.messages.delete_many({"agent_id": "shennell", "user_id": user_id})
     return {"cleared": True}
 
