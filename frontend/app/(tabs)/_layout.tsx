@@ -13,10 +13,10 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.secondary,
         tabBarInactiveTintColor: colors.mutedFg,
         tabBarLabelStyle: {
-          fontSize: 11,
-          letterSpacing: 1.5,
+          fontSize: 10,
+          letterSpacing: 1.2,
           textTransform: "uppercase",
-          fontWeight: "600",
+          fontWeight: "700",
           marginBottom: Platform.OS === "ios" ? 0 : 6,
         },
         tabBarStyle: {
@@ -32,17 +32,8 @@ export default function TabsLayout() {
           Platform.OS === "web"
             ? undefined
             : () => (
-                <BlurView
-                  intensity={60}
-                  tint="dark"
-                  style={StyleSheet.absoluteFill}
-                >
-                  <View
-                    style={[
-                      StyleSheet.absoluteFill,
-                      { backgroundColor: "rgba(3,3,5,0.7)" },
-                    ]}
-                  />
+                <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill}>
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(3,3,5,0.7)" }]} />
                 </BlurView>
               ),
       }}
@@ -50,20 +41,16 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Shennell",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="sparkles" size={size} color={color} />
-          ),
-          tabBarButtonTestID: "tab-shennell",
+          title: "Home",
+          tabBarIcon: ({ color, size }) => <Ionicons name="sparkles" size={size} color={color} />,
+          tabBarButtonTestID: "tab-home",
         }}
       />
       <Tabs.Screen
         name="agents"
         options={{
-          title: "Squad",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people" size={size} color={color} />
-          ),
+          title: "Agents",
+          tabBarIcon: ({ color, size }) => <Ionicons name="people" size={size} color={color} />,
           tabBarButtonTestID: "tab-agents",
         }}
       />
@@ -71,20 +58,24 @@ export default function TabsLayout() {
         name="missions"
         options={{
           title: "Missions",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="flash" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <Ionicons name="flash" size={size} color={color} />,
           tabBarButtonTestID: "tab-missions",
+        }}
+      />
+      <Tabs.Screen
+        name="vault"
+        options={{
+          title: "Vault",
+          tabBarIcon: ({ color, size }) => <Ionicons name="archive" size={size} color={color} />,
+          tabBarButtonTestID: "tab-vault",
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="diamond" size={size} color={color} />
-          ),
-          tabBarButtonTestID: "tab-profile",
+          title: "Command",
+          tabBarIcon: ({ color, size }) => <Ionicons name="diamond" size={size} color={color} />,
+          tabBarButtonTestID: "tab-command",
         }}
       />
     </Tabs>

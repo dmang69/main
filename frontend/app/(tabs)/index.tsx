@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import ChatScreen from "@/src/components/ChatScreen";
+import CommandLauncher from "@/src/components/CommandLauncher";
 import { apiGet, apiPost, getUserId, Message } from "@/src/api";
 import { MEDIA, colors } from "@/src/theme";
 
@@ -87,17 +89,22 @@ export default function ShennellTab() {
   };
 
   return (
-    <ChatScreen
-      headerTitle="Shennell"
-      headerSubtitle="Your ruthless right hand"
-      headerAvatar={MEDIA.shennell}
-      accentColor={colors.primary}
-      testIdPrefix="shennell"
-      messages={messages}
-      loading={loading}
-      sending={sending}
-      onSend={onSend}
-      emptyHint="Tell Shennell what you want to build, hunt, heal, or conquer. She'll deploy the right squad."
-    />
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ChatScreen
+        headerTitle="Shennell"
+        headerSubtitle="Your ruthless right hand"
+        headerAvatar={MEDIA.shennell}
+        accentColor={colors.primary}
+        testIdPrefix="shennell"
+        messages={messages}
+        loading={loading}
+        sending={sending}
+        onSend={onSend}
+        emptyHint="Tap Command to open Modes & slash commands, or just speak your mind."
+      />
+      <View style={{ position: "absolute", top: 72, left: 0, right: 0, zIndex: 50 }} pointerEvents="box-none">
+        <CommandLauncher />
+      </View>
+    </View>
   );
 }

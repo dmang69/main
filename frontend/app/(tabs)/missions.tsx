@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { colors, radius, spacing } from "@/src/theme";
+import { agentPalette, badgeStyle, categoryPalette, colors, radius, spacing } from "@/src/theme";
 import { apiGet, apiPost, getUserId } from "@/src/api";
 
 type Preset = {
@@ -23,6 +23,8 @@ type Preset = {
   name: string;
   tagline: string;
   agents: string[];
+  category: string;
+  badge?: string | null;
   color: string;
   icon: string;
   step_count: number;
@@ -36,9 +38,21 @@ type MissionSummary = {
   created_at: string;
 };
 
+const CATEGORIES = [
+  { key: "all", label: "All" },
+  { key: "legal", label: "Legal" },
+  { key: "finance", label: "Finance" },
+  { key: "health", label: "Health" },
+  { key: "creative", label: "Creative" },
+  { key: "music", label: "Music" },
+  { key: "security", label: "Security" },
+  { key: "crossover", label: "Crossover" },
+];
+
 export default function MissionsTab() {
   const [presets, setPresets] = useState<Preset[]>([]);
   const [missions, setMissions] = useState<MissionSummary[]>([]);
+  const [activeCategory, setActiveCategory] = useState("all");
   const [selected, setSelected] = useState<Preset | null>(null);
   const [objective, setObjective] = useState("");
   const [loading, setLoading] = useState(true);
@@ -61,6 +75,11 @@ export default function MissionsTab() {
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const filtered = useMemo(() => {
+    if (activeCategory === "all") return presets;
+    return presets.filter((p) => p.category === activeCategory);
+  }, [presets, activeCategory]);
 
   const launch = async () => {
     if (!selected || launching) return;
@@ -89,18 +108,85 @@ export default function MissionsTab() {
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <Text style={styles.overline}>Mission Studio</Text>
-          <Text style={styles.title}>Multi-agent missions</Text>
-          <Text style={styles.subtitle}>
-            One-tap orchestrations. Shennell deploys the right specialists in sequence.
-          </Text>
+          {/* Header */}
+          <View style={styles.headerWrap}>
+            <Text style={styles.overline}>Mission Studio</Text>
+            <Text style={styles.title}>Deploy a strike force</Text>
+            <Text style={styles.subtitle}>
+              15 preset missions. Stack agents. Get receipts.
+            </Text>
+          </View>
+
+          {/* Custom Mission CTA */}
+          <TouchableOpacity
+            onPress={() => router.push("/create-mission")}
+            activeOpacity={0.9}
+            style={styles.customCta}
+            testID="create-custom-mission-btn"
+          >
+            <LinearGradient
+              colors={["#D4AF37", "#9333EA"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.customCtaInner}>
+              <View style={styles.customCtaIcon}>
+                <Ionicons name="flash" size={20} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.customCtaTitle}>Custom Mission</Text>
+                <Text style={styles.customCtaSub}>Agent Fusion · pick any 1-5 agents</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#fff" />
+            </View>
+          </TouchableOpacity>
+
+          {/* Category filters */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipRow}
+          >
+            {CATEGORIES.map((cat) => {
+              const isActive = activeCategory === cat.key;
+              const pal = cat.key === "all" ? null : categoryPalette[cat.key];
+              return (
+                <TouchableOpacity
+                  key={cat.key}
+                  onPress={() => setActiveCategory(cat.key)}
+                  style={[
+                    styles.chip,
+                    isActive && {
+                      backgroundColor: pal ? `${pal.main}33` : `${colors.secondary}33`,
+                      borderColor: pal ? pal.main : colors.secondary,
+                    },
+                  ]}
+                  testID={`category-chip-${cat.key}`}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      isActive && {
+                        color: pal ? pal.main : colors.secondary,
+                      },
+                    ]}
+                  >
+                    {cat.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
 
           {loading ? (
             <ActivityIndicator color={colors.secondary} style={{ marginTop: spacing.xl }} />
           ) : (
             <View style={styles.presetList}>
-              {presets.map((p) => {
+              {filtered.map((p) => {
                 const isSelected = selected?.key === p.key;
+                const pal = categoryPalette[p.category] || categoryPalette.crossover;
+                const badge = p.badge ? badgeStyle[p.badge] : null;
                 return (
                   <TouchableOpacity
                     key={p.key}
@@ -108,49 +194,76 @@ export default function MissionsTab() {
                     activeOpacity={0.85}
                     style={[
                       styles.presetCard,
-                      isSelected && { borderColor: p.color },
+                      isSelected && {
+                        borderColor: pal.main,
+                        shadowColor: pal.main,
+                      },
                     ]}
                     testID={`mission-preset-${p.key}`}
                   >
                     <LinearGradient
-                      colors={[`${p.color}22`, "transparent"]}
+                      colors={[`${pal.main}33`, `${pal.accent}11`, "transparent"]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
                       style={StyleSheet.absoluteFill}
                     />
-                    <View style={[styles.iconCircle, { backgroundColor: `${p.color}33`, borderColor: `${p.color}66` }]}>
-                      <Ionicons name={p.icon as any} size={22} color={p.color} />
+                    {/* Glow halo */}
+                    <View style={[styles.haloOuter, { borderColor: `${pal.main}44` }]}>
+                      <View style={[styles.haloInner, { backgroundColor: `${pal.main}22`, borderColor: `${pal.main}88` }]}>
+                        <Ionicons name={p.icon as any} size={26} color={pal.main} />
+                      </View>
                     </View>
+
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.presetName}>{p.name}</Text>
+                      <View style={styles.cardTopRow}>
+                        <Text style={styles.presetName}>{p.name}</Text>
+                        {badge ? (
+                          <View style={[styles.badge, { backgroundColor: badge.bg }]}>
+                            <Text style={[styles.badgeText, { color: badge.fg }]}>{badge.label}</Text>
+                          </View>
+                        ) : null}
+                      </View>
                       <Text style={styles.presetTag}>{p.tagline}</Text>
-                      <View style={styles.metaRow}>
-                        <Text style={styles.metaText}>
-                          {p.step_count} steps · {p.agents.map(a => a.toUpperCase()).join(" + ")}
-                        </Text>
+                      <View style={styles.agentsRow}>
+                        {p.agents.map((a) => {
+                          const ap = agentPalette[a];
+                          return (
+                            <View
+                              key={a}
+                              style={[
+                                styles.agentPill,
+                                { backgroundColor: `${ap?.main || colors.muted}22`, borderColor: `${ap?.main || colors.border}66` },
+                              ]}
+                            >
+                              <Text style={[styles.agentPillText, { color: ap?.main || colors.textSubtle }]}>
+                                {a.toUpperCase()}
+                              </Text>
+                            </View>
+                          );
+                        })}
+                        <View style={styles.stepCount}>
+                          <Ionicons name="layers-outline" size={11} color={colors.textFaint} />
+                          <Text style={styles.stepCountText}>{p.step_count}</Text>
+                        </View>
                       </View>
                     </View>
                   </TouchableOpacity>
                 );
               })}
+              {filtered.length === 0 ? (
+                <Text style={styles.emptyFilter}>No missions in this category yet.</Text>
+              ) : null}
             </View>
           )}
 
+          {/* Launch panel */}
           {selected ? (
-            <View style={styles.launchPanel}>
-              <Text style={styles.fieldLabel}>Mission objective (optional)</Text>
+            <View style={[styles.launchPanel, { borderColor: (categoryPalette[selected.category] || categoryPalette.crossover).main }]}>
+              <Text style={styles.fieldLabel}>Mission objective</Text>
               <TextInput
                 value={objective}
                 onChangeText={setObjective}
-                placeholder={`e.g. "${
-                  selected.key === "fda_awareness_pack"
-                    ? "Focus on Red Dye 40 in childrens cereals"
-                    : selected.key === "hollywood_3hr"
-                    ? "A sci-fi thriller about an AI uprising in 2045"
-                    : selected.key === "music_video"
-                    ? "Dark synthwave anthem about reclaiming power"
-                    : selected.key === "crypto_audit"
-                    ? "My holdings: BTC 60%, ETH 25%, SOL 10%, cash 5%"
-                    : "I'm forming a 2-founder SaaS LLC in Delaware"
-                }"`}
+                placeholder="Be specific. Shennell deploys what you describe."
                 placeholderTextColor={colors.textFaint}
                 style={[styles.input, styles.textarea]}
                 multiline
@@ -163,7 +276,7 @@ export default function MissionsTab() {
                 testID="launch-mission-btn"
               >
                 <LinearGradient
-                  colors={[selected.color, `${selected.color}99`]}
+                  colors={(categoryPalette[selected.category] || categoryPalette.crossover).grad}
                   style={StyleSheet.absoluteFill}
                 />
                 {launching ? (
@@ -171,28 +284,31 @@ export default function MissionsTab() {
                 ) : (
                   <>
                     <Ionicons name="flash" size={18} color="#fff" />
-                    <Text style={styles.launchText}>Launch Mission</Text>
+                    <Text style={styles.launchText}>Deploy Mission</Text>
                   </>
                 )}
               </TouchableOpacity>
-              <Text style={styles.warnText}>
-                Multi-step missions take ~30-90 seconds. Don&apos;t close the next screen.
-              </Text>
             </View>
           ) : null}
 
+          {/* Recent missions */}
           {missions.length > 0 ? (
             <View style={{ marginTop: spacing.xl }}>
-              <Text style={styles.sectionLabel}>Recent Missions</Text>
-              {missions.map((m) => (
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerLabel}>Recent Operations</Text>
+                <View style={styles.dividerLine} />
+              </View>
+              {missions.slice(0, 8).map((m) => (
                 <TouchableOpacity
                   key={m.id}
                   style={styles.missionRow}
                   onPress={() => router.push({ pathname: "/mission/[id]", params: { id: m.id } })}
                   testID={`mission-row-${m.id}`}
                 >
-                  <View style={[styles.statusDot, {
+                  <View style={[styles.statusDotPulse, {
                     backgroundColor: m.status === "complete" ? colors.success : m.status === "failed" ? colors.danger : colors.secondary,
+                    shadowColor: m.status === "complete" ? colors.success : m.status === "failed" ? colors.danger : colors.secondary,
                   }]} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.missionName} numberOfLines={1}>{m.preset_name}</Text>
@@ -206,7 +322,7 @@ export default function MissionsTab() {
             </View>
           ) : null}
 
-          <View style={{ height: 100 }} />
+          <View style={{ height: 120 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -216,10 +332,45 @@ export default function MissionsTab() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: spacing.lg, paddingBottom: 140 },
+  headerWrap: { marginBottom: spacing.md },
   overline: { color: colors.secondary, fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontWeight: "700" },
-  title: { color: colors.textMain, fontSize: 34, fontWeight: "300", fontStyle: "italic", letterSpacing: -0.5, marginTop: spacing.sm },
+  title: { color: colors.textMain, fontSize: 36, fontWeight: "300", fontStyle: "italic", letterSpacing: -0.5, marginTop: spacing.sm },
   subtitle: { color: colors.textSubtle, fontSize: 14, marginTop: spacing.sm, lineHeight: 20, maxWidth: 340 },
-  presetList: { marginTop: spacing.lg, gap: spacing.md },
+
+  customCta: {
+    marginTop: spacing.lg,
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    position: "relative",
+  },
+  customCtaInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  customCtaIcon: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.25)",
+  },
+  customCtaTitle: { color: "#fff", fontSize: 16, fontWeight: "700", letterSpacing: 0.3 },
+  customCtaSub: { color: "rgba(255,255,255,0.85)", fontSize: 12, marginTop: 2 },
+
+  chipRow: { paddingVertical: spacing.lg, gap: spacing.sm, paddingRight: spacing.lg },
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.muted,
+    marginRight: spacing.sm,
+  },
+  chipText: { color: colors.textSubtle, fontSize: 12, fontWeight: "600", letterSpacing: 1, textTransform: "uppercase" },
+
+  presetList: { gap: spacing.md },
   presetCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -230,35 +381,78 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     overflow: "hidden",
     gap: spacing.md,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 4,
   },
-  iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 1,
+  haloOuter: {
+    width: 64, height: 64, borderRadius: 32,
+    borderWidth: 1.5,
+    alignItems: "center", justifyContent: "center",
+  },
+  haloInner: {
+    width: 48, height: 48, borderRadius: 24,
+    alignItems: "center", justifyContent: "center",
+    borderWidth: 1.5,
+  },
+  cardTopRow: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: spacing.sm,
+    flexWrap: "wrap",
   },
   presetName: {
     color: colors.textMain,
     fontSize: 17,
-    fontWeight: "500",
+    fontWeight: "600",
     fontStyle: "italic",
     letterSpacing: 0.3,
+    flexShrink: 1,
   },
-  presetTag: { color: colors.textSubtle, fontSize: 12, marginTop: 2, lineHeight: 16 },
-  metaRow: { marginTop: 6 },
-  metaText: {
+  badge: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+  },
+  badgeText: { fontSize: 9, fontWeight: "800", letterSpacing: 1.5 },
+  presetTag: { color: colors.textSubtle, fontSize: 12, marginTop: 4, lineHeight: 17 },
+  agentsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+    flexWrap: "wrap",
+  },
+  agentPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
+  agentPillText: { fontSize: 10, fontWeight: "700", letterSpacing: 1 },
+  stepCount: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginLeft: 4,
+  },
+  stepCountText: {
     color: colors.textFaint,
-    fontSize: 10,
-    letterSpacing: 1.5,
+    fontSize: 11,
     fontWeight: "600",
-    textTransform: "uppercase",
   },
+  emptyFilter: {
+    color: colors.textFaint,
+    fontSize: 13,
+    textAlign: "center",
+    paddingVertical: spacing.xl,
+    fontStyle: "italic",
+  },
+
   launchPanel: {
     marginTop: spacing.lg,
     backgroundColor: colors.surface,
-    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: radius.lg,
     padding: spacing.md,
@@ -299,20 +493,15 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: "uppercase",
   },
-  warnText: {
-    marginTop: spacing.sm,
-    color: colors.textFaint,
+
+  dividerRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginBottom: spacing.md },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerLabel: {
+    color: colors.secondary,
     fontSize: 11,
-    fontStyle: "italic",
-    textAlign: "center",
-  },
-  sectionLabel: {
-    color: colors.textSubtle,
-    fontSize: 11,
-    letterSpacing: 2,
+    letterSpacing: 3,
+    fontWeight: "700",
     textTransform: "uppercase",
-    fontWeight: "600",
-    marginBottom: spacing.sm,
   },
   missionRow: {
     flexDirection: "row",
@@ -325,7 +514,12 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusDotPulse: {
+    width: 9, height: 9, borderRadius: 5,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+  },
   missionName: { color: colors.textMain, fontSize: 14, fontWeight: "500" },
   missionObjective: { color: colors.textSubtle, fontSize: 12, marginTop: 2 },
 });
