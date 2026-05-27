@@ -223,6 +223,7 @@ def attach(db, run_chat_fn, agent_templates: list, shennell_system_prompt: str):
 
     @extras_router.post("/missions/launch", response_model=Mission)
     async def launch_mission(req: MissionLaunchRequest):
+        import asyncio
         preset = get_mission_preset(req.preset_key)
         if not preset:
             raise HTTPException(status_code=404, detail="Mission preset not found")
@@ -236,60 +237,56 @@ def attach(db, run_chat_fn, agent_templates: list, shennell_system_prompt: str):
         )
         await db.missions.insert_one(mission.model_dump())
 
-        # Execute steps sequentially, feeding prior output as context
-        prior_outputs: List[str] = []
-        try:
-            for idx, step in enumerate(preset["steps"]):
-                agent_template = get_template(step["agent"])
-                if not agent_template:
-                    raise HTTPException(status_code=500, detail=f"Agent template {step['agent']} not found")
+        async def execute_in_background(mission_id: str, preset_def: dict, objective: str):
+            prior_outputs: List[str] = []
+            executed_steps: List[MissionStepResult] = []
+            try:
+                for idx, step in enumerate(preset_def["steps"]):
+                    agent_template = get_template(step["agent"])
+                    if not agent_template:
+                        continue
+                    context_block = ""
+                    if objective:
+                        context_block += f"\n\nUSER'S OBJECTIVE: {objective}"
+                    if prior_outputs:
+                        context_block += "\n\nPRIOR MISSION OUTPUTS (use as context):\n" + "\n\n---\n\n".join(prior_outputs[-3:])
+                    full_prompt = step["prompt"] + context_block
 
-                # Compose the prompt with the user's objective and prior outputs
-                context_block = ""
-                if req.objective:
-                    context_block += f"\n\nUSER'S OBJECTIVE: {req.objective}"
-                if prior_outputs:
-                    context_block += "\n\nPRIOR MISSION OUTPUTS (use as context):\n" + "\n\n---\n\n".join(prior_outputs[-3:])
+                    output = await run_chat_fn(
+                        session_id=f"mission-{mission_id}-step-{idx}",
+                        system_prompt=agent_template["system_prompt"],
+                        history=[],
+                        user_text=full_prompt,
+                    )
 
-                full_prompt = step["prompt"] + context_block
+                    step_result = MissionStepResult(
+                        step_index=idx,
+                        agent_key=step["agent"],
+                        agent_name=agent_template["name"],
+                        title=step["title"],
+                        output=output,
+                    )
+                    executed_steps.append(step_result)
+                    prior_outputs.append(f"[{step_result.title} — {agent_template['name']}]\n{output}")
 
-                # Single-turn LLM call (history=[] keeps cost low)
-                output = await run_chat_fn(
-                    session_id=f"mission-{mission.id}-step-{idx}",
-                    system_prompt=agent_template["system_prompt"],
-                    history=[],
-                    user_text=full_prompt,
-                )
+                    await db.missions.update_one(
+                        {"id": mission_id},
+                        {"$set": {"steps": [s.model_dump() for s in executed_steps]}},
+                    )
 
-                step_result = MissionStepResult(
-                    step_index=idx,
-                    agent_key=step["agent"],
-                    agent_name=agent_template["name"],
-                    title=step["title"],
-                    output=output,
-                )
-                mission.steps.append(step_result)
-                prior_outputs.append(f"[{step_result.title} — {agent_template['name']}]\n{output}")
-
-                # Persist progress after each step
                 await db.missions.update_one(
-                    {"id": mission.id},
-                    {"$set": {"steps": [s.model_dump() for s in mission.steps]}},
+                    {"id": mission_id},
+                    {"$set": {"status": "complete", "completed_at": datetime.now(timezone.utc).isoformat()}},
+                )
+            except Exception as e:
+                logger.exception(f"Mission {mission_id} failed: {e}")
+                await db.missions.update_one(
+                    {"id": mission_id},
+                    {"$set": {"status": "failed"}},
                 )
 
-            mission.status = "complete"
-            mission.completed_at = datetime.now(timezone.utc).isoformat()
-            await db.missions.update_one(
-                {"id": mission.id},
-                {"$set": {"status": mission.status, "completed_at": mission.completed_at}},
-            )
-        except Exception as e:
-            logger.exception(f"Mission {mission.id} failed: {e}")
-            mission.status = "failed"
-            await db.missions.update_one(
-                {"id": mission.id},
-                {"$set": {"status": "failed"}},
-            )
+        # Fire-and-forget; client polls /api/missions/{id} for progress
+        asyncio.create_task(execute_in_background(mission.id, preset, req.objective))
 
         return mission
 
