@@ -1,50 +1,77 @@
-# Welcome to your Expo app 👋
+# Shennell Frontend
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo React Native client for the Shennell AI Agent Platform.
 
-## Get started
+## Overview
 
-1. Install dependencies
+This app targets:
 
-   ```bash
-   npm install
-   ```
+- iOS
+- Android
+- Web
 
-2. Start the app
+The frontend is responsible for the chat experience, agent flows, and client-side UI for the Shennell platform.
 
-   ```bash
-   npx expo start
-   ```
+## Prerequisites
 
-In the output, you'll find options to open the app in a
+- Node.js 20+
+- npm or yarn
+- Expo CLI tooling
+- EAS CLI for cloud builds
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Install Dependencies
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Run in Development
 
-## Learn more
+Start the Expo development server:
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npx expo start
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Run on specific platforms:
 
-## Join the community
+```bash
+npx expo start --web
+npx expo start --android
+npx expo start --ios
+```
 
-Join our community of developers creating universal apps.
+## Build
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Check installed tool versions:
+
+```bash
+npx expo --version
+npx eas --version
+```
+
+Login and configure EAS:
+
+```bash
+npx eas login
+npx eas build:configure
+```
+
+Build examples:
+
+```bash
+npx eas build --platform android --profile preview
+npx eas build --platform android --profile production
+npx eas build --platform ios --profile production
+```
+
+## Notes
+
+- Web export is supported through Expo static output
+- Android and iOS builds are configured through EAS
+- Native Windows desktop packaging is not configured in this frontend project
+
+## Related Docs
+
+- `../BUILD_SETUP_GUIDE.md`
+- `../README.md`
